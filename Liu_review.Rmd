@@ -1,0 +1,32 @@
+---
+title: "Liu_review"
+author: "Huyu Liu"
+date: "10/21/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Liu Review
+
+This file is Huyu Liu's review of Hazinia's R assignment.
+
+##Data import
+
+Cannot import data with the code from `Data import` part, but the codes in `Data processing` is correct.
+
+##Data processing
+
+A lot of `%>%` are used, making the codes simple, so the filter and transposed part is great. And the replace part is done in a way that I did not know.
+
+##Graphs
+
+The density chart is very beautiful, but the x axis need to be adjusted a little bit with `theme(axis.text.x = element_text(vjust =  , hjust =  , angle =  ))` to deal with the overlap of the text.
+
+##Data processing part 2
+
+Still the x axis need to be adjusted.
+
+The last figure is awesome!

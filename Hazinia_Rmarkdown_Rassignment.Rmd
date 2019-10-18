@@ -1,0 +1,133 @@
+---
+title: "Rmarkdown_Hazinia"
+author: "Sara_Hazinia"
+date: "10/13/2019"
+output: html_document
+---
+Data import
+```{r}
+download.file("https://github.com/EEOB-BioData/BCB546X-Fall2019/blob/master/assignments/UNIX_Assignment/fang_et_al_genotypes.txt", destfile = "./fang_et_al.txt")
+library(tidyverse)
+
+fang <- read_tsv("./fang_et_al_genotypes.txt")
+snp <- read_tsv("./snp_position.txt")
+```
+Data inspection 
+
+We can inspect the dimention of files by using "dim" function and limit the entire file into a short piece of file (10 rows and 5 columns)
+```{r}
+dim(fang)
+dim(snp)
+fang[1:10, 1:5]
+snp[1:10, 1:5]
+```
+
+Data processing
+*Redoing Unix assignment. 
+*To see how many groups exist and what are their names, use "unique(filename$variableofinterest)"
+*Using "filter" we choose the groups of interest and transfer them into a new file that ia transposed by "t()"
+*Using for loop we merge Maize and Teosinte files with the SNP files (that contains only snp ID, position and chromosome numbers). 
+
+```{r}
+unique(fang$Group)
+
+library(tidyverse)
+download.file("https://raw.githubusercontent.com/EEOB-BioData/BCB546X-Fall2019/master/assignments/UNIX_Assignment/snp_position.txt", destfile = "./snp_position.txt")
+
+download.file("https://raw.githubusercontent.com/EEOB-BioData/BCB546X-Fall2019/master/assignments/UNIX_Assignment/fang_et_al_genotypes.txt", destfile = "./fang_et_al_genotypes.txt")
+
+
+fang <- read_tsv("./fang_et_al_genotypes.txt")
+snp <- read_tsv("./snp_position.txt")
+
+maize_transposed <- filter(fang, Group %in% c("ZMMLR", "ZMMMR", "ZMMIL")) %>% 
+  select(-JG_OTU, -Group) %>% column_to_rownames(., var = "Sample_ID") %>% t()%>% 
+  as.data.frame() %>% rownames_to_column(., var = "SNP_ID")
+
+teosinte_transposed <- filter(fang, Group %in% c("ZMPBA", "ZMPIL", "ZMPJA")) %>% 
+  select(-JG_OTU, -Group) %>% column_to_rownames(., var = "Sample_ID") %>% t()%>% 
+  as.data.frame() %>% rownames_to_column(., var = "SNP_ID")
+
+snp_formatted <- snp %>% select(SNP_ID, Chromosome, Position)
+
+maize_merged <- merge(snp_formatted, maize_transposed ) %>%  filter(., Position != "multiple",  Chromosome != "unknown")
+
+teosinte_merged <- merge(snp_formatted, teosinte_transposed) %>%
+  filter(., Position != "multiple",  Chromosome != "unknown")
+
+maize_to_be_replaced <- maize_merged %>% as.matrix()
+teosinte_to_be_replaced <- teosinte_merged %>% as.matrix()
+
+maize_to_be_replaced[maize_to_be_replaced == "?/?"] <- "-/-"
+teosinte_to_be_replaced[teosinte_to_be_replaced == "?/?"] <- "-/-"
+
+maize_to_be_replaced <- as.tibble(maize_to_be_replaced)
+teosinte_to_be_replaced <- as.tibble(teosinte_to_be_replaced)
+
+
+for (i in 1:10) {
+ 
+  m1 <- maize_merged %>% filter(., Chromosome == i[1]) %>% arrange(.,as.numeric(Position))
+  m2 <- maize_to_be_replaced %>% filter(., Chromosome == i[1]) %>% arrange(.,desc(as.numeric(Position)))
+ 
+  write_tsv(m1, paste("Maize_chr", i[1], "increasing.txt", sep = "_"))
+  write_tsv(m2, paste("Maize_chr", i[1], "decreasing.txt", sep = "_"))
+ 
+  t1 <- filter(teosinte_merged, Chromosome == i[1]) %>% arrange(., as.numeric(Position))
+  t2 <- filter(teosinte_to_be_replaced, Chromosome == i[1]) %>% arrange(., desc(as.numeric(Position)))
+ 
+  write_tsv(t1, paste("Teosinte_chr", i[1], "_increasing.txt", sep = "_"))
+  write_tsv(t2, paste("Teosinte_chr", i[1], "_decreasing.txt", sep = "_"))
+}
+
+fang_transposed <- fang %>% select(-JG_OTU, -Group) %>% column_to_rownames(., var = "Sample_ID") %>% t()%>% as.data.frame() %>% rownames_to_column(., var = "SNP_ID")
+
+fang_SNP_merged <- merge(snp_formatted, fang_transposed) %>% filter(., Position !="multiple", Position !="unknown")
+
+ggplot(fang_SNP_merged, aes(x= as.character(Chromosome))) + geom_bar(aes(fill = as.character(Chromosome))) + theme_bw()
+
+ggplot(fang_SNP_merged, aes(x= as.numeric(Position))) + geom_density(aes(fill = as.character(Chromosome))) + facet_wrap(~ Chromosome, nrow =2, ncol =5) + theme_bw()
+
+
+```
+
+Graphs
+
+First transpose fang original file by removing two columns that are not necessary (JG_OTU and Group). Now we have SNP ids in rows and sample names in columns. 
+
+Then transfer the file to a matrix so we can annotate number 1 for homozygosity, zero for heterozygosity and NA for missing data that are given by question marks. 
+
+Sapply is used to count the number of homozygotes, heterozygotes, and missing SNPs. 
+
+Formatted sample is reshaping the data into a proper arrangment so we can plot them in stack bar graphs using ggplot. 
+
+
+
+Data processing part 2
+
+The fang file first needs to be deplete of column JG_OTU. Then using pivot_longer we allocate the SNPs to each sample. So we have 939 SNPs and 2782 samples, hence we will have (939*2782=2734706) rows (about 900 SNPs for each sample). 
+
+Next, we add a new column called new_sequence in that ,by using ifelse, it will contain the SNPs characters as homo/heterozygous, and missing for unavailable data. 
+
+Also, we use position = "fill" to make each bar to fill the entire length of graph. In other words, we standardize the data so we can see how many SNP characters does each sample/group contain. 
+```{r}
+tidy_fang <- fang %>% select(-JG_OTU) %>%
+  pivot_longer( -Sample_ID:-Group, names_to = "SNP_ID", values_to = "Sequence")
+
+tidy_fang <- tidy_fang %>%
+  mutate(new_sequence = ifelse(Sequence %in% c("A/A","T/T","C/C","G/G"), "Homozygous",
+  ifelse(Sequence == "?/?", "Missing","Heterozygous")))
+
+ggplot(tidy_fang, aes(x = Sample_ID, fill = new_sequence)) +
+  geom_bar(position = "fill") + theme_bw()
+
+ggplot(tidy_fang, aes(x = Group , fill = new_sequence)) + geom_bar(position = "fill") +
+  theme_bw() + theme(axis.text.x = element_text(angle = 90))
+
+```
+Below is the visualization of the variables of my interest. I can see for each group, what are the combination of SNPs and which fraction does each SNP occupy.  
+```{r}
+ggplot(filter(tidy_fang, Sequence != "?/?") , aes(x = Group, fill = Sequence)) +
+  geom_bar (position = "fill") + coord_polar() +theme_bw()
+```
+
