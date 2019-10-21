@@ -25,6 +25,8 @@ A lot of `%>%` are used, making the codes simple, so the filter and transposed p
 
 The density chart is very beautiful, but the x axis need to be adjusted a little bit with `theme(axis.text.x = element_text(vjust =  , hjust =  , angle =  ))` to deal with the overlap of the text.
 
+And chromosomes are not in order.
+
 ##Data processing part 2
 
 Still the x axis need to be adjusted.
